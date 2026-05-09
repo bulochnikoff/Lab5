@@ -1,0 +1,63 @@
+services:
+  consul:
+    image: bitnami/consul:1.17
+    container_name: lab5_consul
+    ports:
+      - "8500:8500"   # UI и API
+      - "8600:8600/udp"
+    command: consul agent -dev -client=0.0.0.0 -ui
+    networks:
+      - app-network
+
+  db:
+    image: postgres:15
+    container_name: lab5_postgres
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: lab5db
+    ports:
+      - "5435:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d lab5db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    container_name: lab5_backend
+    ports:
+      - "5002:5000"   # новый порт, чтобы не мешать другим
+    environment:
+      - PORT=5000
+      - DATABASE_URL=postgresql://user:password@db:5435/lab5db
+      - CONSUL_URL=http://consul:8500
+    depends_on:
+      db:
+        condition: service_healthy
+      consul:
+        condition: service_started
+    networks:
+      - app-network
+
+  frontend:
+    build: ./frontend
+    container_name: lab5_frontend
+    ports:
+      - "8081:80"
+    depends_on:
+      - backend
+    networks:
+      - app-network
+
+volumes:
+  postgres_data:
+
+networks:
+  app-network:
+    driver: bridge
