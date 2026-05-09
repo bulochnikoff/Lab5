@@ -6,7 +6,7 @@ from flask import Flask, jsonify
 from dotenv import load_dotenv
 from api import api
 from database import db
-
+from sqlalchemy import text
 load_dotenv()
 
 app = Flask(__name__)
@@ -50,7 +50,7 @@ threading.Timer(2.0, register_with_consul).start()
 @app.route('/health', methods=['GET'])
 def health():
     try:
-        db.session.execute('SELECT 1')
+        db.session.execute(text('SELECT 1'))
         return jsonify({"status": "ok"}), 200
     except Exception as e:
         return jsonify({"status": "error", "details": str(e)}), 500
